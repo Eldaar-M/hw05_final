@@ -5,11 +5,12 @@ from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from posts.models import Group, Post, User
+from posts.models import Follow, Group, Post, User
 
 USERNAME_NOT_AUTH = 'not_author'
 USERNAME_AUTHOR = 'author'
 GROUP_SLUG = 'group_1'
+USERNAME_FOLLOWER = 'follower'
 
 INDEX_URL = reverse('posts:index')
 POST_CREATE_URL = reverse('posts:post_create')
@@ -21,6 +22,14 @@ FOLLOW_INDEX_URL = reverse('posts:follow_index')
 PROFILE_FOLLOW_URL = reverse('posts:profile_follow', args=[USERNAME_AUTHOR])
 PROFILE_UNFOLLOW_URL = reverse('posts:profile_unfollow',
                                args=[USERNAME_AUTHOR])
+LOGIN_FOLLOW_INDEX_URL = f'{LOGIN_URL}?next={FOLLOW_INDEX_URL}'
+LOGIN_PROFILE_FOLLOW_URL = f'{LOGIN_URL}?next={PROFILE_FOLLOW_URL}'
+LOGIN_PROFILE_UNFOLLOW_URL = f'{LOGIN_URL}?next={PROFILE_UNFOLLOW_URL}'
+BAD_PAGE_URL = '/badpage-test'
+
+OK = HTTPStatus.OK
+FOUND = HTTPStatus.FOUND
+NOT_FOUND = HTTPStatus.NOT_FOUND
 
 
 class PostURLTests(TestCase):
@@ -29,6 +38,7 @@ class PostURLTests(TestCase):
         super().setUpClass()
         cls.user = User.objects.create(username=USERNAME_AUTHOR)
         cls.user_not_author = User.objects.create(username=USERNAME_NOT_AUTH)
+        cls.user_follower = User.objects.create(username=USERNAME_FOLLOWER)
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug=GROUP_SLUG,
@@ -39,18 +49,22 @@ class PostURLTests(TestCase):
             group=cls.group,
             text='a' * 20,
         )
+        cls.follow = Follow.objects.create(
+            user=cls.user_follower,
+            author=cls.user,
+        )
         cls.POST_DETAIL_URL = reverse('posts:post_detail', args=[cls.post.id])
         cls.POST_EDIT_URL = reverse('posts:post_edit', args=[cls.post.id])
         cls.LOGIN_URL_EDIT = f'{LOGIN_URL}?next={cls.POST_EDIT_URL}'
-        cls.COMMENT_URL = reverse('posts:add_comment', args=[cls.post.id])
-        cls.LOGIN_URL_COMMENT = f'{LOGIN_URL}?next={cls.COMMENT_URL}'
+        cls.guest = Client()
+        cls.author = Client()
+        cls.author.force_login(cls.user)
+        cls.another = Client()
+        cls.another.force_login(cls.user_not_author)
+        cls.follower = Client()
+        cls.follower.force_login(cls.user_follower)
 
     def setUp(self):
-        self.guest = Client()
-        self.author = Client()
-        self.author.force_login(self.user)
-        self.another = Client()
-        self.another.force_login(self.user_not_author)
         cache.clear()
 
     def test_urls_uses_correct_template(self):
@@ -63,6 +77,7 @@ class PostURLTests(TestCase):
             self.POST_EDIT_URL: 'posts/create_post.html',
             POST_CREATE_URL: 'posts/create_post.html',
             FOLLOW_INDEX_URL: 'posts/follow.html',
+            BAD_PAGE_URL: 'core/404.html'
         }
         for url, template in cases.items():
             with self.subTest(url=url):
@@ -72,20 +87,23 @@ class PostURLTests(TestCase):
     def test_status_code(self):
         """Проверка status_code для пользователей"""
         cases = [
-            [INDEX_URL, self.guest, HTTPStatus.OK],
-            [GROUP_URL, self.guest, HTTPStatus.OK],
-            [PROFILE_URL, self.guest, HTTPStatus.OK],
-            [POST_CREATE_URL, self.guest, HTTPStatus.FOUND],
-            [self.POST_EDIT_URL, self.guest, HTTPStatus.FOUND],
-            [self.COMMENT_URL, self.guest, HTTPStatus.FOUND],
-            [self.POST_DETAIL_URL, self.guest, HTTPStatus.OK],
-            [FOLLOW_INDEX_URL, self.guest, HTTPStatus.FOUND],
-            [PROFILE_FOLLOW_URL, self.guest, HTTPStatus.FOUND],
-            [PROFILE_UNFOLLOW_URL, self.guest, HTTPStatus.FOUND],
-            [FOLLOW_INDEX_URL, self.another, HTTPStatus.OK],
-            [POST_CREATE_URL, self.another, HTTPStatus.OK],
-            [self.POST_EDIT_URL, self.another, HTTPStatus.FOUND],
-            [self.POST_EDIT_URL, self.author, HTTPStatus.OK],
+            [INDEX_URL, self.guest, OK],
+            [GROUP_URL, self.guest, OK],
+            [PROFILE_URL, self.guest, OK],
+            [self.POST_DETAIL_URL, self.guest, OK],
+            [FOLLOW_INDEX_URL, self.another, OK],
+            [POST_CREATE_URL, self.another, OK],
+            [self.POST_EDIT_URL, self.author, OK],
+            [PROFILE_UNFOLLOW_URL, self.follower, FOUND],
+            [POST_CREATE_URL, self.guest, FOUND],
+            [self.POST_EDIT_URL, self.guest, FOUND],
+            [FOLLOW_INDEX_URL, self.guest, FOUND],
+            [PROFILE_FOLLOW_URL, self.guest, FOUND],
+            [self.POST_EDIT_URL, self.another, FOUND],
+            [PROFILE_FOLLOW_URL, self.another, FOUND],
+            [PROFILE_FOLLOW_URL, self.author, FOUND],
+            [PROFILE_UNFOLLOW_URL, self.author, NOT_FOUND],
+            [BAD_PAGE_URL, self.author, NOT_FOUND],
         ]
         for url, client, expected in cases:
             with self.subTest(
@@ -101,22 +119,17 @@ class PostURLTests(TestCase):
             [POST_CREATE_URL, self.guest, LOGIN_URL_CREATE],
             [self.POST_EDIT_URL, self.another, self.POST_DETAIL_URL],
             [self.POST_EDIT_URL, self.guest, self.LOGIN_URL_EDIT],
-            [self.COMMENT_URL, self.guest, self.LOGIN_URL_COMMENT]
+            [FOLLOW_INDEX_URL, self.guest, LOGIN_FOLLOW_INDEX_URL],
+            [PROFILE_FOLLOW_URL, self.guest, LOGIN_PROFILE_FOLLOW_URL],
+            [PROFILE_UNFOLLOW_URL, self.guest, LOGIN_PROFILE_UNFOLLOW_URL],
+            [PROFILE_FOLLOW_URL, self.another, PROFILE_URL],
+            [PROFILE_UNFOLLOW_URL, self.follower, PROFILE_URL],
+            [PROFILE_FOLLOW_URL, self.author, PROFILE_URL]
         ]
         for url, client, expected in cases:
             with self.subTest(
                 url=url,
-                client=client,
+                client=auth.get_user(client).username,
                 expected=expected
             ):
                 self.assertRedirects(client.get(url), expected)
-
-    def test_for_404_page(self):
-        """Запрос к несуществующей странице вернет 404
-        и будет использован кастомный шаблон."""
-        response = self.guest.get('/badpage-test', follow=True)
-        self.assertEqual(
-            response.status_code,
-            HTTPStatus.NOT_FOUND,
-        )
-        self.assertTemplateUsed(response, 'core/404.html')

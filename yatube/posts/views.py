@@ -1,7 +1,8 @@
 from django.conf import settings
-from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, render, redirect
+from django.urls import reverse
 from django.views.decorators.cache import cache_page
 
 from .forms import CommentForm, PostForm
@@ -29,6 +30,7 @@ def group_posts(request, slug):
     group = get_object_or_404(Group, slug=slug)
     return render(request, 'posts/group_list.html', {
         'group': group,
+        'path_group': reverse('posts:group_list', args=[slug]),
         'page_obj': get_page_context(group.posts.all(), request),
     })
 
@@ -36,22 +38,20 @@ def group_posts(request, slug):
 def profile(request, username):
     """Выводит шаблон профайла пользователя"""
     author = get_object_or_404(User, username=username)
-    following = request.user.is_authenticated and Follow.objects.filter(
-        user=request.user, author=author).exists
     return render(request, 'posts/profile.html', {
         'author': author,
         'page_obj': get_page_context(author.posts.all(), request),
-        'following': following
+        'path_profile': reverse('posts:profile', args=[username]),
+        'following': (request.user.is_authenticated
+                      and author.following.filter(user=request.user).exists())
     })
 
 
 def post_detail(request, post_id):
     """Выводит шаблон с подробной информацией поста"""
-    post = get_object_or_404(Post, pk=post_id)
     return render(request, 'posts/post_detail.html', {
-        'post': post,
+        'post': get_object_or_404(Post, pk=post_id),
         'form': CommentForm(),
-        'page_obj': get_page_context(post.comments.all(), request)
     })
 
 
@@ -89,14 +89,13 @@ def post_edit(request, post_id):
 @login_required
 def add_comment(request, post_id):
     form = CommentForm(request.POST or None)
-    if not form.is_valid():
+    if form.is_valid():
+        post = get_object_or_404(Post, pk=post_id)
+        comment = form.save(commit=False)
+        comment.author = request.user
+        comment.post = post
+        comment.save()
         return redirect('posts:post_detail', post_id=post_id)
-    post = get_object_or_404(Post, pk=post_id)
-    comment = form.save(commit=False)
-    comment.author = request.user
-    comment.post = post
-    comment.save()
-    return redirect('posts:post_detail', post_id=post_id)
 
 
 @login_required
@@ -104,24 +103,28 @@ def follow_index(request):
     return render(
         request, 'posts/follow.html',
         {'page_obj': get_page_context(
-         Post.objects.filter(author__following__user=request.user),
-         request)}
+            Post.objects.filter(author__following__user=request.user),
+            request)}
     )
 
 
 @login_required
 def profile_follow(request, username):
-    author = get_object_or_404(User, username=username)
-    if request.user != author:
+    if request.user.username != username:
+        author = get_object_or_404(User, username=username)
         Follow.objects.get_or_create(
             user=request.user,
             author=author
         )
-    return redirect('posts:follow_index')
+    return redirect('posts:profile', username)
 
 
 @login_required
 def profile_unfollow(request, username):
-    author = get_object_or_404(User, username=username)
-    Follow.objects.filter(user=request.user, author=author).delete()
-    return redirect('posts:follow_index')
+    user_follower = get_object_or_404(
+        Follow,
+        user=request.user,
+        author__username=username
+    )
+    user_follower.delete()
+    return redirect('posts:profile', username)

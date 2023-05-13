@@ -1,6 +1,8 @@
 from django.test import TestCase
 from django.urls import reverse
 
+from posts.urls import app_name
+
 
 USERNAME_AUTHOR = 'author'
 GROUP_SLUG = 'group_1'
@@ -26,4 +28,4 @@ class PostURLTests(TestCase):
         """Расчеты name дают ожидаемые URL"""
         for url, name, *args in URL_NAMES:
             with self.subTest():
-                self.assertEqual(url, reverse(f'posts:{name}', args=args))
+                self.assertEqual(url, reverse(f'{app_name}:{name}', args=args))

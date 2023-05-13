@@ -15,7 +15,7 @@
   </div>
 {% endif %}
 
-{% for comment in page_obj %}
+{% for comment in post.comments.all %}
   <div class="media mb-4">
     <div class="media-body">
       <h5 class="mt-0">
@@ -24,9 +24,8 @@
         </a>
       </h5>
       <p>
-        {{ comment.text }}
+        {{ comment.text|linebreaksbr }}
       </p>
     </div>
   </div>
 {% endfor %}
-{% include 'posts/includes/paginator.html' %}

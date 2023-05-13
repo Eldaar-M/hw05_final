@@ -1,0 +1,26 @@
+{% load thumbnail %}
+<article>
+  <ul>
+    {% if path_profile != request.path %}
+      <li>
+          Автор: 
+          <a href="{%  url 'posts:profile' post.author.username %}">{{ post.author.username }}</a> 
+      </li>
+    {% endif %}
+    <li>
+      Дата публикации: {{ post.pub_date|date:"d E Y" }}
+    </li>
+    {% if path_group != request.path %}
+      {% if post.group %}
+        <li>
+          Группа: <a href="{% url 'posts:group_list' post.group.slug %}"> {{ post.group.title }} </a> 
+        </li>
+      {% endif %}
+    {% endif %}
+  </ul>
+  {% thumbnail post.image "960x339" crop="center" upscale=True as im %}
+    <img class="card-img my-2" src="{{ im.url }}">
+  {% endthumbnail %}
+  <p>{{ post.text|linebreaksbr }}</p>
+  <a href="{% url 'posts:post_detail' post.pk %}">подробная информация </a>
+</article>

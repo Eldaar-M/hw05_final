@@ -6,7 +6,7 @@ from core.models import CreatedModel
 User = get_user_model()
 
 
-class Group (models.Model):
+class Group(models.Model):
     title = models.CharField(
         max_length=200,
         verbose_name='Название',
@@ -27,7 +27,7 @@ class Group (models.Model):
         return self.title
 
 
-class Post (CreatedModel):
+class Post(CreatedModel):
     text = models.TextField(
         'Текст записи',
         help_text='Введите текст записи')
@@ -53,16 +53,11 @@ class Post (CreatedModel):
         blank=True
     )
 
-    class Meta:
-        ordering = ('-pub_date',)
-        verbose_name = 'Запись',
-        verbose_name_plural = 'Записи'
-
     def __str__(self):
         return self.text[:15]
 
 
-class Comment (CreatedModel):
+class Comment(CreatedModel):
     post = models.ForeignKey(
         Post,
         on_delete=models.CASCADE,
@@ -82,23 +77,35 @@ class Comment (CreatedModel):
         help_text='Введите текст комментария'
     )
 
-    class Meta:
-        ordering = ['-pub_date']
-
     def __str__(self):
         return self.text[:15]
 
 
-class Follow (models.Model):
+class Follow(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='follower',
         verbose_name='Подписчик',
+        help_text='Подписчик'
     )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='following',
         verbose_name='Автор',
+        help_text='Автор'
     )
+
+    class Meta:
+        verbose_name = 'Подписка'
+        verbose_name_plural = 'Подписки'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'author'],
+                name='unique_following'
+            )
+        ]
+
+    def __str__(self):
+        return f'{self.user} подписался на {self.author}'
