@@ -1,7 +1,7 @@
 {% load thumbnail %}
 <article>
   <ul>
-    {% if path_profile != request.path %}
+    {% if not hide_author_link %}
       <li>
           Автор: 
           <a href="{%  url 'posts:profile' post.author.username %}">{{ post.author.username }}</a> 
@@ -10,7 +10,7 @@
     <li>
       Дата публикации: {{ post.pub_date|date:"d E Y" }}
     </li>
-    {% if path_group != request.path %}
+    {% if not hide_group_link %}
       {% if post.group %}
         <li>
           Группа: <a href="{% url 'posts:group_list' post.group.slug %}"> {{ post.group.title }} </a> 

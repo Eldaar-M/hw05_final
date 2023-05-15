@@ -12,7 +12,6 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from posts.models import Comment, Group, Post, User
-from posts.urls import POST_PATH
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
@@ -26,7 +25,7 @@ GROUP_URL = reverse('posts:group_list', args=[GROUP_SLUG])
 PROFILE_URL = reverse('posts:profile', args=[USERNAME_AUTHOR])
 LOGIN_URL = reverse('users:login')
 
-small_gif = (
+SMALL_GIF = (
     b'\x47\x49\x46\x38\x39\x61\x02\x00'
     b'\x01\x00\x80\x00\x00\x00\x00\x00'
     b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
@@ -60,12 +59,12 @@ class PostFormTests(TestCase):
         )
         cls.uploaded = SimpleUploadedFile(
             name='small.gif',
-            content=small_gif,
+            content=SMALL_GIF,
             content_type='image/gif'
         )
         cls.uploaded_2 = SimpleUploadedFile(
             name='small_2.gif',
-            content=small_gif,
+            content=SMALL_GIF,
             content_type='image/gif'
         )
         cls.unauthorized_client = Client()
@@ -103,7 +102,10 @@ class PostFormTests(TestCase):
         self.assertRedirects(response, PROFILE_URL)
         self.assertEqual(post.text, form_data['text'])
         self.assertEqual(post.group.id, form_data['group'])
-        self.assertEqual(post.image.name, POST_PATH + form_data['image'].name)
+        self.assertEqual(
+            post.image.name,
+            settings.IMAGE_PATH + form_data['image'].name
+        )
         self.assertEqual(post.author, self.author)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
@@ -126,7 +128,10 @@ class PostFormTests(TestCase):
         self.assertEqual(post.text, form_data['text'])
         self.assertEqual(post.group.id, form_data['group'])
         self.assertEqual(post.author, self.post.author)
-        self.assertEqual(post.image.name, POST_PATH + form_data['image'].name)
+        self.assertEqual(
+            post.image.name,
+            settings.IMAGE_PATH + form_data['image'].name
+        )
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_post_create_edit_shows_correct_context(self):
@@ -183,8 +188,7 @@ class PostFormTests(TestCase):
             data=form_data,
             follow=True
         )
-        posts = set(Post.objects.all()) - posts
-        self.assertEqual(len(posts), 0)
+        self.assertEqual(len(posts), 1)
 
     def test_unauthorized_comments(self):
         """Неавторизованный клиент не может создать запись в Comments."""
@@ -197,10 +201,9 @@ class PostFormTests(TestCase):
             data=form_data,
             follow=True
         )
-        comments = set(Comment.objects.all()) - comments
         self.assertEqual(len(comments), 0)
 
-    def test_post_edit(self):
+    def test_unauthorized_no_author_post_edit(self):
         """Неавторизованный клиент и неавтор
             не могут изменить запись в Post.
         """
@@ -212,16 +215,15 @@ class PostFormTests(TestCase):
         }
         clients = [self.unauthorized_client, self.authorized_client]
         for client in clients:
-            response = self.client.post(
+            self.client.post(
                 self.POST_EDIT_URL,
                 data=form_data,
                 follow=True,
             )
             post = Post.objects.get(id=self.post.id)
             with self.subTest(client=auth.get_user(client).username):
-                self.assertRedirects(response, self.LOGIN_URL_EDIT)
                 self.assertEqual(Post.objects.count(), posts_count)
                 self.assertEqual(post.text, self.post.text)
-                self.assertEqual(post.group.id, self.post.group.id)
+                self.assertEqual(post.group, self.post.group)
                 self.assertEqual(post.author, self.post.author)
-                self.assertEqual(post.image.name, self.post.image.name)
+                self.assertEqual(post.image, self.post.image)

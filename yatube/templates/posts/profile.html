@@ -4,31 +4,27 @@
 
 {% block content %}  
   <h1>Все записи пользователя  {{ author.username }}</h1>
-  <h4>Всего записей: {{ page_obj.paginator.count }}</h4>
+  <h4>Всего записей: {{ author.posts.count }}</h4>
   <h4>Комментарии: {{ author.comments.count }}</h4>
   <h4>Подписки: {{ author.follower.count }}</h4>
   <h4>Подписчики: {{ author.following.count }}</h4>
-  {% if user.is_authenticated %}
-    {% if user != author%}
-      {% if following%}
-        <a class="btn btn-lg btn-light"
-           href="{% url 'posts:profile_unfollow' author.username %}" 
-           role="button"
-        >
-          Отписаться
-        </a>
-      {% else %}
-          <a class="btn btn-lg btn-primary"
-             href="{% url 'posts:profile_follow' author.username %}" 
-             role="button"
-          >
-            Подписаться
-          </a>
-      {% endif %}
-    {% endif %}
+  {% if following%}
+    <a class="btn btn-lg btn-light"
+        href="{% url 'posts:profile_unfollow' author.username %}" 
+        role="button"
+    >
+      Отписаться
+    </a>
+  {% else %}
+    <a class="btn btn-lg btn-primary"
+        href="{% url 'posts:profile_follow' author.username %}" 
+        role="button"
+    >
+      Подписаться
+    </a>
   {% endif %}
   {% for post in page_obj %}
-    {% include 'posts/includes/post.html' %}
+    {% include 'posts/includes/post.html' with hide_author_link=True %}
     {% if not forloop.last %}<hr>{% endif %}
   {% endfor %}
       

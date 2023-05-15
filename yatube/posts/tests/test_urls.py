@@ -87,23 +87,24 @@ class PostURLTests(TestCase):
     def test_status_code(self):
         """Проверка status_code для пользователей"""
         cases = [
-            [INDEX_URL, self.guest, OK],
-            [GROUP_URL, self.guest, OK],
-            [PROFILE_URL, self.guest, OK],
-            [self.POST_DETAIL_URL, self.guest, OK],
+            [BAD_PAGE_URL, self.author, NOT_FOUND],
             [FOLLOW_INDEX_URL, self.another, OK],
-            [POST_CREATE_URL, self.another, OK],
-            [self.POST_EDIT_URL, self.author, OK],
-            [PROFILE_UNFOLLOW_URL, self.follower, FOUND],
-            [POST_CREATE_URL, self.guest, FOUND],
-            [self.POST_EDIT_URL, self.guest, FOUND],
             [FOLLOW_INDEX_URL, self.guest, FOUND],
-            [PROFILE_FOLLOW_URL, self.guest, FOUND],
-            [self.POST_EDIT_URL, self.another, FOUND],
+            [GROUP_URL, self.guest, OK],
+            [INDEX_URL, self.guest, OK],
+            [POST_CREATE_URL, self.another, OK],
+            [POST_CREATE_URL, self.guest, FOUND],
             [PROFILE_FOLLOW_URL, self.another, FOUND],
             [PROFILE_FOLLOW_URL, self.author, FOUND],
+            [PROFILE_FOLLOW_URL, self.guest, FOUND],
             [PROFILE_UNFOLLOW_URL, self.author, NOT_FOUND],
-            [BAD_PAGE_URL, self.author, NOT_FOUND],
+            [PROFILE_UNFOLLOW_URL, self.follower, FOUND],
+            [PROFILE_UNFOLLOW_URL, self.guest, FOUND],
+            [PROFILE_URL, self.guest, OK],
+            [self.POST_DETAIL_URL, self.guest, OK],
+            [self.POST_EDIT_URL, self.another, FOUND],
+            [self.POST_EDIT_URL, self.author, OK],
+            [self.POST_EDIT_URL, self.guest, FOUND],
         ]
         for url, client, expected in cases:
             with self.subTest(

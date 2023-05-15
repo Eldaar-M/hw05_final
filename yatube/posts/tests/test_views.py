@@ -30,7 +30,7 @@ PROFILE_UNFOLLOW_URL = reverse('posts:profile_unfollow',
 
 RESULT_FOR_SECOND_PAGE = 1
 
-small_gif = (
+SMALL_GIF = (
     b'\x47\x49\x46\x38\x39\x61\x02\x00'
     b'\x01\x00\x80\x00\x00\x00\x00\x00'
     b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
@@ -59,7 +59,7 @@ class PostViewsTests(TestCase):
         )
         cls.uploaded = SimpleUploadedFile(
             name='small.gif',
-            content=small_gif,
+            content=SMALL_GIF,
             content_type='image/gif'
         )
         cls.post = Post.objects.create(
@@ -94,15 +94,14 @@ class PostViewsTests(TestCase):
             с правильным контекстом.
         """
         context_objects = {
-            INDEX_URL: 'page_obj',
             GROUP_URL: 'page_obj',
             PROFILE_URL: 'page_obj',
             FOLLOW_INDEX_URL: 'page_obj',
-            self.POST_DETAIL_URL: 'post'
+            self.POST_DETAIL_URL: 'post',
+            INDEX_URL: 'page_obj',
         }
         for url, context_var in context_objects.items():
-            response = self.another.get(url)
-            context_obj = response.context[context_var]
+            context_obj = self.another.get(url).context[context_var]
             if context_var == 'page_obj':
                 self.assertEqual(len(context_obj), 1)
                 post = context_obj[0]
@@ -115,15 +114,15 @@ class PostViewsTests(TestCase):
             self.assertEqual(post.image, self.post.image)
 
     def test_post_in_mistake_page(self):
-        """Пост не попал на чужую ленты."""
+        """Пост не попал на чужие ленты."""
         cases = {
             self.authorized_client: GROUP_URL_2,
             self.another_2: FOLLOW_INDEX_URL
         }
         for client, url in cases.items():
             with self.subTest(
-                    url=url,
-                    client=auth.get_user(client).username):
+                 url=url,
+                 client=auth.get_user(client).username):
                 self.assertNotIn(
                     self.post,
                     client.get(url).context["page_obj"]
@@ -143,70 +142,48 @@ class PostViewsTests(TestCase):
             self.authorized_client.get(PROFILE_URL).context['author'],
             self.author)
 
-    def test_post_follow(self):
-        """Запись появляется в ленте тех, кто подписан."""
-        self.assertIn(
-            self.post,
-            self.another.get(FOLLOW_INDEX_URL).context["page_obj"]
-        )
-
     def test_cache_index_page(self):
         """Проверка работы кеша"""
         content_before = self.another.get(INDEX_URL).content
-        Post.objects.create(
-            text='Проверка кэша.',
-            author=self.user
-        )
+        Post.objects.all().delete()
         content_after = self.authorized_client.get(INDEX_URL).content
         self.assertEqual(content_before, content_after)
         cache.clear()
-        content_after_cache_clear = self.authorized_client.get(INDEX_URL)
-        self.assertNotEqual(content_before, content_after_cache_clear)
-
-    def test_unauthorized_comments(self):
-        """Проверка базы после запросов подписаться и отписаться."""
-        follows = set(Follow.objects.all())
-        self.another_2.post(PROFILE_FOLLOW_URL)
-        follows = set(Follow.objects.all()) - follows
-        self.assertEqual(len(follows), 1)
-        follow = follows.pop()
-        self.assertEqual(follow.author_id, self.author.id)
-        self.assertEqual(follow.user_id, self.user_2.id)
-        self.another_2.post(PROFILE_UNFOLLOW_URL)
-        self.assertNotIn(follow, set(Follow.objects.all()))
-
-
-class PaginatorViewsTest(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.author = User.objects.create(username=USERNAME_AUTHOR)
-        cls.user = User.objects.create(username=USERNAME_AUTH)
-        cls.group = Group.objects.create(
-            title='Тестовая группа',
-            slug=GROUP_SLUG,
-            description='Тестовое описание',
+        self.assertNotEqual(
+            content_before,
+            self.authorized_client.get(INDEX_URL).content
         )
-        cls.follow = Follow.objects.create(
-            user=cls.user,
-            author=cls.author
-        )
-        Post.objects.bulk_create(
-            Post(
-                author=cls.author,
-                text=f'Тестовый пост {i}',
-                group=cls.group) for i in range(
-                settings.NUM_POSTS_PER_PAGE + RESULT_FOR_SECOND_PAGE)
-        )
-        cls.another = Client()
-        cls.another.force_login(cls.user)
-        cls.authorized_client = Client()
-        cls.authorized_client.force_login(cls.author)
 
-    def setUp(self):
-        cache.clear()
+    def test_follow_base(self):
+        """Проверка базы после запроса подписаться."""
+        self.another_2.get(PROFILE_FOLLOW_URL)
+        self.assertEqual(
+            Follow.objects.filter(
+                author=self.author,
+                user=self.user_2).exists(),
+            True
+        )
+
+    def test_unfollow_base(self):
+        """Проверка базы после запроса отписаться."""
+        self.another.get(PROFILE_UNFOLLOW_URL)
+        self.assertEqual(
+            Follow.objects.filter(
+                author=self.author,
+                user=self.user).exists(),
+            False
+        )
 
     def test_paginator(self):
+        Post.objects.all().delete()
+        Post.objects.bulk_create(
+            Post(
+                author=self.author,
+                text=f'Тестовый пост {i}',
+                group=self.group) for i in range(
+                settings.NUM_POSTS_PER_PAGE + RESULT_FOR_SECOND_PAGE)
+        )
+
         urls = {
             INDEX_URL: settings.NUM_POSTS_PER_PAGE,
             INDEX_URL + '?page=2': RESULT_FOR_SECOND_PAGE,
@@ -217,6 +194,7 @@ class PaginatorViewsTest(TestCase):
             FOLLOW_INDEX_URL + '?page=2': RESULT_FOR_SECOND_PAGE,
         }
         for url, count in urls.items():
-            self.assertEqual(
-                len(self.another.get(url).context['page_obj']),
-                count)
+            with self.subTest(url=url):
+                self.assertEqual(
+                    len(self.another.get(url).context['page_obj']),
+                    count)
