@@ -35,8 +35,8 @@ class ModelsTest(TestCase):
             self.post: self.post.text[:15],
             self.comment: self.comment.text[:15],
             self.follow: self.follow.FOLLOW_PHRASE.format(
-                user=str(self.user),
-                author=str(self.author)
+                user=self.user.username,
+                author=self.author.username
             )
         }
 

@@ -124,6 +124,6 @@ class Follow(models.Model):
 
     def __str__(self):
         return self.FOLLOW_PHRASE.format(
-            user=str(self.user),
-            author=str(self.author)
+            user=self.user.username,
+            author=self.author.username
         )

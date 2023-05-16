@@ -67,6 +67,11 @@ class PostFormTests(TestCase):
             content=SMALL_GIF,
             content_type='image/gif'
         )
+        cls.uploaded_3 = SimpleUploadedFile(
+            name='small_2.gif',
+            content=SMALL_GIF,
+            content_type='image/gif'
+        )
         cls.unauthorized_client = Client()
         cls.authorized_client = Client()
         cls.authorized_client.force_login(cls.user)
@@ -177,21 +182,23 @@ class PostFormTests(TestCase):
 
     def test_unauthorized_create_post(self):
         """Неавторизованный клиент не может создать запись в Post."""
+        Post.objects.all().delete()
         posts = set(Post.objects.all())
         form_data = {
             'text': 'Тестовый текст',
             'group': self.group.id,
-            'image': self.uploaded,
+            'image': self.uploaded_3,
         }
         self.unauthorized_client.post(
             POST_CREATE_URL,
             data=form_data,
             follow=True
         )
-        self.assertEqual(len(posts), len(set(Post.objects.all())))
+        self.assertEqual(posts, set(Post.objects.all()))
 
     def test_unauthorized_comments(self):
         """Неавторизованный клиент не может создать запись в Comments."""
+        Comment.objects.all().delete()
         comments = set(Comment.objects.all())
         form_data = {
             'text': 'Тестовый текст',
@@ -201,7 +208,7 @@ class PostFormTests(TestCase):
             data=form_data,
             follow=True
         )
-        self.assertEqual(len(comments), len(set(Comment.objects.all())))
+        self.assertEqual(comments, set(Comment.objects.all()))
 
     def test_unauthorized_no_author_post_edit(self):
         """Неавторизованный клиент и неавтор
