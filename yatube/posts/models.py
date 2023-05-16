@@ -110,7 +110,7 @@ class Follow(models.Model):
         help_text='Автор'
     )
 
-    phrase = '{user} подписался на {author}'
+    FOLLOW_PHRASE = '{user} подписался на {author}'
 
     class Meta:
         verbose_name = 'Подписка'
@@ -123,4 +123,7 @@ class Follow(models.Model):
         ]
 
     def __str__(self):
-        return self.phrase.format(user=self.user, author=self.author)
+        return self.FOLLOW_PHRASE.format(
+            user=str(self.user),
+            author=str(self.author)
+        )

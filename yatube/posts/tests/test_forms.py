@@ -188,7 +188,7 @@ class PostFormTests(TestCase):
             data=form_data,
             follow=True
         )
-        self.assertEqual(len(posts), 1)
+        self.assertEqual(len(posts), len(set(Post.objects.all())))
 
     def test_unauthorized_comments(self):
         """Неавторизованный клиент не может создать запись в Comments."""
@@ -201,7 +201,7 @@ class PostFormTests(TestCase):
             data=form_data,
             follow=True
         )
-        self.assertEqual(len(comments), 0)
+        self.assertEqual(len(comments), len(set(Comment.objects.all())))
 
     def test_unauthorized_no_author_post_edit(self):
         """Неавторизованный клиент и неавтор
@@ -213,15 +213,19 @@ class PostFormTests(TestCase):
             'group': self.group_2.id,
             'image': self.uploaded_2
         }
-        clients = [self.unauthorized_client, self.authorized_client]
-        for client in clients:
-            self.client.post(
+        cases = {
+            self.unauthorized_client: self.LOGIN_URL_EDIT,
+            self.authorized_client: self.POST_DETAIL_URL
+        }
+        for client, url in cases.items():
+            response = client.post(
                 self.POST_EDIT_URL,
                 data=form_data,
                 follow=True,
             )
             post = Post.objects.get(id=self.post.id)
             with self.subTest(client=auth.get_user(client).username):
+                self.assertRedirects(response, url)
                 self.assertEqual(Post.objects.count(), posts_count)
                 self.assertEqual(post.text, self.post.text)
                 self.assertEqual(post.group, self.post.group)

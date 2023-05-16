@@ -156,25 +156,32 @@ class PostViewsTests(TestCase):
 
     def test_follow_base(self):
         """Проверка базы после запроса подписаться."""
-        self.another_2.get(PROFILE_FOLLOW_URL)
-        self.assertEqual(
+        Follow.objects.all().delete()
+        self.another.get(PROFILE_FOLLOW_URL)
+        self.assertTrue(
             Follow.objects.filter(
                 author=self.author,
-                user=self.user_2).exists(),
-            True
+                user=self.user
+            ).exists()
         )
 
     def test_unfollow_base(self):
         """Проверка базы после запроса отписаться."""
+        Follow.objects.all().delete()
+        Follow.objects.create(
+            user=self.user,
+            author=self.author
+        )
         self.another.get(PROFILE_UNFOLLOW_URL)
-        self.assertEqual(
+        self.assertFalse(
             Follow.objects.filter(
                 author=self.author,
-                user=self.user).exists(),
-            False
+                user=self.user
+            ).exists()
         )
 
     def test_paginator(self):
+        """Тест пагинатора."""
         Post.objects.all().delete()
         Post.objects.bulk_create(
             Post(

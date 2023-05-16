@@ -33,12 +33,15 @@ class ModelsTest(TestCase):
         test_str = {
             self.group: self.group.title,
             self.post: self.post.text[:15],
-            str(self.comment): self.comment.text[:15],
-            str(self.follow): f'{self.user} подписался на {self.author}'
+            self.comment: self.comment.text[:15],
+            self.follow: self.follow.FOLLOW_PHRASE.format(
+                user=str(self.user),
+                author=str(self.author)
+            )
         }
 
         for field, expected in test_str.items():
-            with self.subTest(class_name=type(self).__name__):
+            with self.subTest(class_name=type(field).__name__):
                 self.assertEqual(
                     str(field), expected)
 
@@ -60,7 +63,11 @@ class ModelsTest(TestCase):
             [Follow, 'author', 'Автор']
         ]
         for model, value, expected in field_verboses:
-            with self.subTest(value=value):
+            with self.subTest(
+                model=model,
+                value=value,
+                expected=expected
+            ):
                 self.assertEqual(
                     model._meta.get_field(value).verbose_name, expected)
 
@@ -82,6 +89,10 @@ class ModelsTest(TestCase):
             [Follow, 'author', 'Автор']
         ]
         for model, field, expected_value in field_help_texts:
-            with self.subTest(field=field):
+            with self.subTest(
+                model=model,
+                field=field,
+                expected=expected_value
+            ):
                 self.assertEqual(
                     model._meta.get_field(field).help_text, expected_value)

@@ -8,20 +8,22 @@
   <h4>Комментарии: {{ author.comments.count }}</h4>
   <h4>Подписки: {{ author.follower.count }}</h4>
   <h4>Подписчики: {{ author.following.count }}</h4>
-  {% if following%}
-    <a class="btn btn-lg btn-light"
-        href="{% url 'posts:profile_unfollow' author.username %}" 
-        role="button"
-    >
-      Отписаться
-    </a>
-  {% else %}
-    <a class="btn btn-lg btn-primary"
-        href="{% url 'posts:profile_follow' author.username %}" 
-        role="button"
-    >
-      Подписаться
-    </a>
+  {% if user.is_authenticated and user != author %} 
+    {% if following%}
+      <a class="btn btn-lg btn-light"
+          href="{% url 'posts:profile_unfollow' author.username %}" 
+          role="button"
+      >
+        Отписаться
+      </a>
+    {% else %}
+      <a class="btn btn-lg btn-primary"
+          href="{% url 'posts:profile_follow' author.username %}" 
+          role="button"
+      >
+        Подписаться
+      </a>
+    {% endif %}
   {% endif %}
   {% for post in page_obj %}
     {% include 'posts/includes/post.html' with hide_author_link=True %}
