@@ -182,7 +182,6 @@ class PostFormTests(TestCase):
 
     def test_unauthorized_create_post(self):
         """Неавторизованный клиент не может создать запись в Post."""
-        Post.objects.all().delete()
         posts = set(Post.objects.all())
         form_data = {
             'text': 'Тестовый текст',
@@ -198,7 +197,6 @@ class PostFormTests(TestCase):
 
     def test_unauthorized_comments(self):
         """Неавторизованный клиент не может создать запись в Comments."""
-        Comment.objects.all().delete()
         comments = set(Comment.objects.all())
         form_data = {
             'text': 'Тестовый текст',
